@@ -1,4 +1,7 @@
-# BlueSkyの投稿をWordCloudで可視化する
+:::note info
+viviONグループでは、DLsiteやcomipoなど、二次元コンテンツを世の中に届けるためのサービスを運営しています。
+ともに働く仲間を募集していますので、興味のある方は[こちら](#一緒に二次元業界を盛り上げていきませんか)まで。
+:::
 
 ## はじめに
 
@@ -109,8 +112,7 @@ const feed = await this.agent.app.bsky.feed.getFeed({
 https://docs.bsky.app/docs/api/app-bsky-feed-get-feed
 
 :::note warn
-今回はポストを100件取得しています。
-もし盛り上がりを知りたい場合は、投稿時間を検証して一定期間の投稿を取得すると良いです。
+精確な盛り上がりを知りたい場合は、投稿時間を検証して一定期間の投稿を取得すると良いです。
 :::
 
 ### 取得したフィードから、WordCloud用に前処理を行う
@@ -298,7 +300,7 @@ canvas.height = height;
 
 ctx.fillStyle = "white";
 ctx.fillRect(0, 0, canvas.width, canvas.height); // 背景を塗りつぶす
-ctx.textBaseline = "middle"; // ベースラインを中央に設定
+ctx.textBaseline = "top"; // ベースラインをtopに設定
 
 const rects: Rect[] = []; // 単語の配置を記録する
 const MIN_FONT_SIZE = 10;
@@ -313,21 +315,23 @@ data.forEach((d) => {
   ctx.font = `normal ${fontSize}px sans-serif`;
   const textWidth = ctx.measureText(d.text).width;
   const textHeight = fontSize;
+  const boxWidth = textWidth + padding * 2;
+  const boxHeight = textHeight + padding * 2;
 
   let x, y: number;
   let count = 0;
   while (true) {
-    x = Math.random() * (canvas.width - textWidth);
-    y = Math.random() * (canvas.height - textHeight);
+    x = Math.random() * (canvas.width - boxWidth);
+    y = Math.random() * (canvas.height - boxHeight);
 
-    const rect = { x, y, width: textWidth + padding * 2, height: textHeight + padding * 2 };
+    const rect = { x, y, width: boxWidth, height: boxHeight };
 
     if (!isOverlapping(rect, rects) && isWithinCanvas(rect, canvas)) {
       rects.push(rect);
       ctx.fillStyle = `rgb(${Math.random() * 240}, ${Math.random() * 240}, ${Math.random() * 240})`;
-      ctx.fillText(d.text, x, y + textHeight / 2);
+      ctx.fillText(d.text, x + padding, y + padding);
       // 当たり判定が見たい場合は以下のコメントアウトを外す
-      // ctx.strokeRect(x, y, textWidth + padding * 2, textHeight + padding * 2);
+      // ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
       break;
     }
 
@@ -348,24 +352,25 @@ Canvasを作成して単語を配置します。
 （100回以上重なる場合は描画を諦めるようにしています）
 他にも一定回数以上重なる場合はサイズを変えるなど工夫することで、試行回数を減らすことができるでしょう。
 
-文字の回転を実装していなかったり、単語の配置がランダムなため、物足りない部分がありますが、基本的なWordCloudの生成ができました。
-
 以上の実装から生成したWordCloudが、こちらです。
 
 #### [Japanese Cluster](https://bsky.app/profile/jaz.bsky.social/feed/cl-japanese)フィード
-![WordCloud](./image/word-cloud.png?)
+
+![word-cloud.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3512467/5edf90e2-4528-5f4e-6bf5-2398ecab682f.png)
 ちょうど観光バス記念日だったので、観光が入っています。
 バスは一般名詞だったので、今回は除外されていました。
 
 #### [原神](https://bsky.app/profile/shimoju.jp/feed/aaadkjp33cr7y)フィード
-![WordCloud](./image/word-cloud2.png)
+
+![word-cloud2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3512467/767a9f97-f6e7-4e12-374b-149e635cc40b.png)
 精確な分かち書きができていないため、意味のない単語が多いです。
 なんとなくガイアが人気なことはわかります。
 
 #### [買っちゃった！](https://bsky.app/profile/itokonn.bsky.social/feed/aaae55kaqvsla)フィード
-![WordCloud](./image/word-cloud3.png)
+
+![word-cloud3.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3512467/bd5a0752-7605-0f86-b5b3-140cbc6f5241.png)
 ポチったってワードがポチとして抽出されていそうです。
-他にはちょうど大神が新作の発表と旧作のセールで話題になっていたので、影響が出ていそうです。
+他に、ちょうど大神が新作の発表と旧作のセールで話題になっていた影響が出ていそうです。
 
 ### 当たり判定について
 
@@ -373,10 +378,58 @@ Canvasを作成して単語を配置します。
 今回は単語の短形を当たり判定に利用しましたが、WordCloud生成ライブラリの[wordcloud2.js](https://github.com/timdream/wordcloud2.js)では、Canvasをgridに分割した2次元配列で管理し、詳細な判定処理を行っていました。
 このような方法を取ることで、単語内の空白や余白にも単語を配置できます。
 
-ライブラリ毎に当たり判定の処理や配置のアルゴリズムが異なりますので、一度コードを読んでみるとおもしろいです。
+## （追加実装）文字の回転について
 
-## まとめ
-BlueSkyのAPIを利用してフィードを取得し、WordCloudを生成する方法を紹介しました。
+前項の実装では、文字の回転までは実装していませんでした。
+若干物足りない見た目のWordCloudが生成されていたので、追加で文字の回転を実装してみます。
+
+まずはフラグを用意し、ランダムで回転する単語を決めます。
+その際に、当たり判定を考慮し高さと幅を入れ替えます。
+
+```ts
+const isVertical = Math.random() > 0.5;
+const textWidth = isVertical ? fontSize : ctx.measureText(d.text).width;
+const textHeight = isVertical ? ctx.measureText(d.text).width : fontSize;
+```
+
+次に文字を配置します。
+回転する単語の場合のみ、canvasを回してから配置します。
+
+```ts
+if (!isOverlapping(rect, rects) && isWithinCanvas(rect, canvas)) {
+  rects.push(rect);
+  ctx.save(); // 状態を保存
+  ctx.fillStyle = `rgb(${Math.random() * 240}, ${Math.random() * 240}, ${Math.random() * 240})`;
+  ctx.translate(x + boxWidth / 2, y + boxHeight / 2); // Canvasの原点を文字の中心にする
+  if (isVertical) ctx.rotate(Math.PI / 2); // 90度回転
+  // 縦書きの場合はx, yを入れ替える
+  const posX = isVertical ? -textHeight / 2 : -textWidth / 2;
+  const posY = isVertical ? -textWidth / 2 : -textHeight / 2;
+  ctx.fillText(d.text, posX , posY);
+  ctx.restore(); // 保存した状態に戻す
+  break;
+}
+```
+
+x, y座標の配置に悩みましたが、これで当たり判定と同じ位置に配置できます。
+
+このコードで生成したWordCloudがこちらになります。
+
+![word-cloud5.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3512467/ef23725a-285d-0faa-f153-56dfcbfec900.png)
+![word-cloud6.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3512467/97620264-e606-b638-c4d3-cafd950cb00f.png)
+
+
+ついでにフォントの変更、一般名詞も追加して出力してみました。
+前項で掲載したWordCloudより、ぎっしりと敷き詰められた気がします。
+
+## 最後に
+今回はBlueSkyのAPIを利用してフィードを取得し、WordCloudを生成する方法を紹介しました。
+
+BlueSkyのAPIは、データを取得して表示するといった基本的な実装を試みてみるのに適しています。
+Web開発の初学者にもオススメですので、ぜひ試してみてください。
+
+WordCloudの実装はシンプルですが、計算量の削減や見た目の調整など、まだだ改良の余地があります。
+ライブラリ毎に当たり判定の処理や配置のアルゴリズムが異なりますので、興味があれば調べてみてください。
 
 ここまで読んでくださりありがとうございました。
 
@@ -387,3 +440,10 @@ BlueSkyのAPIを利用してフィードを取得し、WordCloudを生成する�
 - [WordCloudとkuromojiを使ったアプリケーション](https://www.design.kyushu-u.ac.jp/~morimoto/teaching/materials/Extra.html)
 - [React + kuromoji.js + D3-CloudでWordCloudをブラウザに描画](https://takumon.com/wordcloud-with-kuromoji-d3cloud-react/)
 - [きれいな Word Cloud を作るには](https://note.com/takibi333/n/nd9b8fcf4c3cd)
+
+## 一緒に二次元業界を盛り上げていきませんか？
+株式会社viviONでは、フロントエンドエンジニアを募集しています。
+
+https://vivion.jp/recruit/
+
+また、フロントエンドエンジニアに限らず、バックエンド・SRE・スマホアプリなど様々なエンジニア職を募集していますので、ぜひ採用情報をご覧ください。
